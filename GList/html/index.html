@@ -1,0 +1,251 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Список игр</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h2 {
+            color: #333;
+        }
+        .form-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .form-container p {
+            margin: 0 0 10px;
+        }
+        .form-container input[type="text"],
+        .form-container input[type="number"] {
+            width: calc(100% - 10px);
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-container input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .form-container button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007BFF;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .form-container button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+        td {
+            background-color: #fff;
+        }
+        button.edit-btn, button.delete-btn {
+            background-color: #28a745;
+            margin-right: 10px;
+        }
+        button.delete-btn {
+            background-color: #dc3545;
+        }
+        button.edit-btn:hover {
+            background-color: #218838;
+        }
+        button.delete-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h2>Список игр</h2>
+    <div class="form-container">
+        <input type="hidden" id="gameId">
+        <p>
+            Название:<br>
+            <input id="gameName" type="text">
+        </p>
+        <p>
+            Оценка:<br>
+            <input id="gameRating" type="number" min="1" max="10">
+        </p>
+        <p>
+            Игра пройдена:<br>
+            <input id="gameCompleted" type="checkbox">
+        </p>
+        <p>
+            <button id="saveBtn">Сохранить</button>
+            <button id="resetBtn">Сбросить</button>
+        </p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Оценка</th>
+                <th>Пройдена</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <script>
+        async function getGames() {
+            const response = await fetch("/api/games", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const games = await response.json();
+                const rows = document.querySelector("tbody");
+                games.forEach(game => rows.append(row(game)));
+            }
+        }
+
+        async function getGame(id) {
+            const response = await fetch(`/api/games/${id}`, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const game = await response.json();
+                document.getElementById("gameId").value = game.id;
+                document.getElementById("gameName").value = game.name;
+                document.getElementById("gameRating").value = game.rating;
+                document.getElementById("gameCompleted").checked = game.completed;
+            } else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        async function createGame(gameName, gameRating, gameCompleted) {
+            const response = await fetch("api/games", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({ name: gameName, rating: parseInt(gameRating, 10), completed: gameCompleted })
+            });
+            if (response.ok === true) {
+                const game = await response.json();
+                document.querySelector("tbody").append(row(game));
+            } else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        async function editGame(gameId, gameName, gameRating, gameCompleted) {
+            const response = await fetch("api/games", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({ id: gameId, name: gameName, rating: parseInt(gameRating, 10), completed: gameCompleted })
+            });
+            if (response.ok === true) {
+                const game = await response.json();
+                document.querySelector(`tr[data-rowid='${game.id}']`).replaceWith(row(game));
+            } else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        async function deleteGame(id) {
+            const response = await fetch(`/api/games/${id}`, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const game = await response.json();
+                document.querySelector(`tr[data-rowid='${game.id}']`).remove();
+            } else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        function reset() {
+            document.getElementById("gameId").value = "";
+            document.getElementById("gameName").value = "";
+            document.getElementById("gameRating").value = "";
+            document.getElementById("gameCompleted").checked = false;
+        }
+
+        function row(game) {
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", game.id);
+
+            const nameTd = document.createElement("td");
+            nameTd.append(game.name);
+            tr.append(nameTd);
+
+            const ratingTd = document.createElement("td");
+            ratingTd.append(game.rating);
+            tr.append(ratingTd);
+
+            const completedTd = document.createElement("td");
+            const completedCheckbox = document.createElement("input");
+            completedCheckbox.type = "checkbox";
+            completedCheckbox.disabled = true;
+            completedCheckbox.checked = game.completed;
+            completedTd.append(completedCheckbox);
+            tr.append(completedTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("button");
+            editLink.className = "edit-btn";
+            editLink.append("Изменить");
+            editLink.addEventListener("click", async() => await getGame(game.id));
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("button");
+            removeLink.className = "delete-btn";
+            removeLink.append("Удалить");
+            removeLink.addEventListener("click", async () => await deleteGame(game.id));
+            linksTd.append(removeLink);
+
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+
+        document.getElementById("resetBtn").addEventListener("click", () => reset());
+        document.getElementById("saveBtn").addEventListener("click", async () => {
+            const id = document.getElementById("gameId").value;
+            const name = document.getElementById("gameName").value;
+            const rating = document.getElementById("gameRating").value;
+            const completed = document.getElementById("gameCompleted").checked;
+            if (id === "")
+                await createGame(name, rating, completed);
+            else
+                await editGame(id, name, rating, completed);
+            reset();
+        });
+
+        getGames();
+    </script>
+</body>
+</html>
